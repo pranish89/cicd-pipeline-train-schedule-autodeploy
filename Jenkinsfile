@@ -1,7 +1,8 @@
 pipeline{
-    agent any {
-        tools 'mygradle'
-    }
+    agent any
+    tools{
+        gradle 'mygradle'
+    } 
     stages{
         stage('Delete Workspace'){
             steps{
