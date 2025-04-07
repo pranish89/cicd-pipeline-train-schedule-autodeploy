@@ -45,8 +45,8 @@ pipeline{
                             cd gradle-project
                             docker rmi edureka-project
                             docker login
-                            docker build -t sk260/edureka-project2:v1 .
-                            docker push sk260/edureka-project2:v1
+                            docker build -t pranish89/edureka-project2:v1 .
+                            docker push pranish89/edureka-project2:v1
                         ''', 
                         execTimeout: 120000, 
                         flatten: false, 
