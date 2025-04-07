@@ -1,78 +1,90 @@
-pipeline {
+pipeline{
     agent any
-    environment {
-        //be sure to replace "bhavukm" with your own Docker Hub username
-        DOCKER_IMAGE_NAME = "mohitkhokhar172/train-schedule"
-    }
-    stages {
-        stage('Build') {
-            steps {
-                echo 'Running build automation'
-                sh './gradlew build --no-daemon'
-                archiveArtifacts artifacts: 'dist/trainSchedule.zip'
+    tools{
+        jdk 'JDK 8'
+        gradle 'My Gradle'
+    } 
+    stages{
+        stage('Delete Workspace'){
+            steps{
+                deleteDir()
             }
         }
-        stage('Build Docker Image') {
-            when {
-                branch 'master'
-            }
-            steps {
-                script {
-                    app = docker.build(DOCKER_IMAGE_NAME)
-                    app.inside {
-                        sh 'echo Hello, World!'
-                    }
+        stage("Gradle Build"){
+            steps{
+                git 'https://github.com/pranish89/cicd-pipeline-train-schedule-autodeploy.git'
+                withGradle {
+                    sh './gradlew build'
                 }
+                sshPublisher(publishers: [sshPublisherDesc(configName: 'Test Server', transfers: [
+                    sshTransfer(
+                        cleanRemote: false, 
+                        excludes: '', 
+                        execCommand: '', 
+                        execTimeout: 120000, 
+                        flatten: false, 
+                        makeEmptyDirs: false, 
+                        noDefaultExcludes: false, 
+                        patternSeparator: '[, ]+', 
+                        remoteDirectory: '/gradle-project', 
+                        remoteDirectorySDF: false, 
+                        removePrefix: '', 
+                        sourceFiles: 'bin/**, data/**, dist/**, gradle/wrapper/**, test/**, gradlew, gradlew.bat, package.json, package-lock.json, public/**, routes/**, views/**,Dockerfile')], 
+                        usePromotionTimestamp: false, 
+                        useWorkspaceInPromotion: false, 
+                        verbose: false)])
             }
         }
-        stage('Push Docker Image') {
-            when {
-                branch 'master'
-            }
-            steps {
-                script {
-                    docker.withRegistry('https://registry.hub.docker.com', 'docker_hub_login') {
-                        app.push("${env.BUILD_NUMBER}")
-                        app.push("latest")
-                    }
-                }
-            }
+        stage('Build image and push'){
+            steps{
+                sshPublisher(publishers: [sshPublisherDesc(configName: 'Test Server', transfers: [
+                    sshTransfer(
+                        cleanRemote: false, 
+                        excludes: '', 
+                        execCommand: '''
+                            cd gradle-project
+                            docker rmi edureka-project
+                            docker login
+                            docker build -t sk260/edureka-project2:v1 .
+                            docker push sk260/edureka-project2:v1
+                        ''', 
+                        execTimeout: 120000, 
+                        flatten: false, 
+                        makeEmptyDirs: false, 
+                        noDefaultExcludes: false, 
+                        patternSeparator: '[, ]+',
+                        remoteDirectory: '', 
+                        remoteDirectorySDF: false, 
+                        removePrefix: '', 
+                        sourceFiles: '')], 
+                        usePromotionTimestamp: false, 
+                        useWorkspaceInPromotion: false, 
+                        verbose: false)])
+            }        
         }
-        stage('CanaryDeploy') {
-            when {
-                branch 'master'
-            }
-            environment { 
-                CANARY_REPLICAS = 1
-            }
-            steps {
-                kubernetesDeploy(
-                    kubeconfigId: 'kubeconfig',
-                    configs: 'train-schedule-kube-canary.yml',
-                    enableConfigSubstitution: true
-                )
-            }
-        }
-        stage('DeployToProduction') {
-            when {
-                branch 'master'
-            }
-            environment { 
-                CANARY_REPLICAS = 0
-            }
-            steps {
-                input 'Deploy to Production?'
-                milestone(1)
-                kubernetesDeploy(
-                    kubeconfigId: 'kubeconfig',
-                    configs: 'train-schedule-kube-canary.yml',
-                    enableConfigSubstitution: true
-                )
-                kubernetesDeploy(
-                    kubeconfigId: 'kubeconfig',
-                    configs: 'train-schedule-kube.yml',
-                    enableConfigSubstitution: true
-                )
+        stage('Kubernetes Deployment'){
+            steps{
+                sshPublisher(publishers: [sshPublisherDesc(configName: 'Kubemaster', transfers: [
+                    sshTransfer(
+                        cleanRemote: false, 
+                        excludes: '', 
+                        execCommand: '''
+                            cd project-deployment
+                            kubectl delete -f deployment.yaml
+                            kubectl apply -f deployment.yaml
+                        ''', 
+                        execTimeout: 120000, 
+                        flatten: false, 
+                        makeEmptyDirs: false, 
+                        noDefaultExcludes: false, 
+                        patternSeparator: '[, ]+', 
+                        remoteDirectory: 'project-deployment', 
+                        remoteDirectorySDF: false, 
+                        removePrefix: '', 
+                        sourceFiles: 'deployment.yaml')], 
+                        usePromotionTimestamp: false, 
+                        useWorkspaceInPromotion: false, 
+                        verbose: false)])
             }
         }
     }
