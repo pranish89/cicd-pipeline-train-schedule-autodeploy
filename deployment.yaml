@@ -29,7 +29,7 @@ spec:
     spec:
      containers:
       - name: train-schedule
-        image: sk260/edureka-project2:latest
+        image: pranish89/edureka-project2:latest
         imagePullPolicy: Always 
         ports: 
          - containerPort: 8080
