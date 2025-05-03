@@ -13,7 +13,7 @@ pipeline{
             steps{
                 git 'https://github.com/pranish89/cicd-pipeline-train-schedule-autodeploy.git'
                 withGradle {
-                   sh './gradlew build --stacktrace'
+                   sh './gradlew build --debug'
                 }
                 sshPublisher(publishers: [sshPublisherDesc(configName: 'Test Server', transfers: [
                     sshTransfer(
